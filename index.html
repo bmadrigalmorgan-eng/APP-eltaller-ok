@@ -4442,22 +4442,17 @@ async function init(){
   // Cargar datos sin esperar auth — se muestran inmediato
   await loadGastos();
 
-  // Unregister any old service workers from previous domains (Netlify etc)
+  // Eliminar TODOS los service workers sin excepcion y limpiar todos los caches
   if('serviceWorker' in navigator){
-    // Desregistrar TODOS los SW viejos sin excepcion y registrar el nuevo
-    const regs = await navigator.serviceWorker.getRegistrations();
-    for(const r of regs){ await r.unregister(); }
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
-    const regs2 = await navigator.serviceWorker.getRegistrations();
-    for(const r of regs2){
-      if(!r.scope.includes('github.io')){
-        await r.unregister();
-        console.log('Unregistered old SW:', r.scope);
-      }
-    }
-  }
-  // Register new SW
-  if('serviceWorker' in navigator){
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+      // Limpiar todos los caches del browser para este origen
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(name => caches.delete(name)));
+      console.log('Cleared', regs.length, 'SW and', cacheNames.length, 'caches');
+    } catch(e){ console.warn('SW cleanup error:', e); }
+    // Registrar el nuevo SW limpio
     try { await navigator.serviceWorker.register('./sw.js'); } catch(e){}
   }
   await loadPrices();
