@@ -809,15 +809,46 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--ink);disp
     <!-- Calculadora para medidas personalizadas grandes -->
     <div class="card" style="border:1.5px dashed var(--acc);background:var(--al);">
       <div style="font-size:12px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">🧮 Calcular tamaño personalizado</div>
-      <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;line-height:1.5;">Para medidas más grandes que 20×20 cm. Ingresa las medidas y calcula el precio estimado.</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;line-height:1.5;">Ingresa las medidas y ajusta el precio si lo ves necesario.</div>
       <div class="row2">
-        <div class="field"><div class="fl">Ancho (cm)</div><input class="inp ctr" type="number" min="1" max="100" id="dtfuv-calc-w" placeholder="0"></div>
-        <div class="field"><div class="fl">Alto (cm)</div><input class="inp ctr" type="number" min="1" max="100" id="dtfuv-calc-h" placeholder="0"></div>
+        <div class="field"><div class="fl">Ancho (cm)</div><input class="inp ctr" type="number" min="1" max="200" id="dtfuv-calc-w" placeholder="0"></div>
+        <div class="field"><div class="fl">Alto (cm)</div><input class="inp ctr" type="number" min="1" max="200" id="dtfuv-calc-h" placeholder="0"></div>
       </div>
-      <div id="dtfuv-calc-result" style="display:none;background:var(--white);border-radius:12px;padding:14px;margin-top:4px;text-align:center;">
-        <div style="font-size:11px;color:var(--ink3);">Precio estimado por pieza</div>
-        <div style="font-size:28px;font-weight:800;color:var(--acc);" id="dtfuv-calc-precio">$0</div>
-        <div style="font-size:11px;color:var(--ink3);" id="dtfuv-calc-detalle"></div>
+      <div id="dtfuv-calc-result" style="display:none;margin-top:8px;">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;" id="dtfuv-calc-detalle"></div>
+        <div class="row2" style="align-items:flex-end;">
+          <div class="field">
+            <div class="fl">Precio por pieza $ <span style="font-weight:400;color:var(--ink3);text-transform:none;">(editable)</span></div>
+            <input class="inp ctr" type="number" min="1" id="dtfuv-calc-precio" style="font-size:20px;font-weight:800;color:var(--acc);">
+          </div>
+          <div class="field">
+            <div class="fl">Cantidad</div>
+            <input class="inp ctr" type="number" min="1" value="1" id="dtfuv-calc-qty">
+          </div>
+        </div>
+        <!-- Instalación -->
+        <div class="fl" style="margin-top:10px;">Instalación</div>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+          <button class="btn-s dtfuv-inst-btn" data-monto="0" style="flex:1;">Sin instalación</button>
+          <button class="btn-s dtfuv-inst-btn" data-monto="150" style="flex:1;">Sencilla $150</button>
+          <button class="btn-s dtfuv-inst-btn" data-monto="250" style="flex:1;">Compleja $250</button>
+        </div>
+        <!-- Total -->
+        <div style="background:var(--white);border-radius:12px;padding:14px;margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink3);margin-bottom:4px;">
+            <span id="dtfuv-calc-sub-label">1 pza × $0</span>
+            <span id="dtfuv-calc-sub">$0</span>
+          </div>
+          <div id="dtfuv-calc-inst-row" style="display:none;justify-content:space-between;font-size:12px;color:var(--ink3);margin-bottom:4px;">
+            <span id="dtfuv-calc-inst-label">Instalación</span>
+            <span id="dtfuv-calc-inst-amt">$0</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:var(--ink);border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
+            <span>Total</span>
+            <span id="dtfuv-calc-total" style="color:var(--acc);">$0</span>
+          </div>
+        </div>
+        <button class="btn-p" id="dtfuv-calc-usar" style="margin-top:10px;width:100%;">Usar este precio en el pedido</button>
       </div>
     </div>
     <div class="card">
@@ -2164,7 +2195,7 @@ function renderProdGrid(elId, prods, getSelected, tipo){
     div.addEventListener('click',()=>{
       if(tipo==='dtf'){selectedDtf=p.key;renderVariantes('dtf-variantes-wrap',p.tallas||TALLAS_ROPA);}
       if(tipo==='uv'){selectedUv=p.key;renderVariantes('uv-variantes-wrap',p.tallas||TALLAS_VASO);}
-      if(tipo==='dtfuv'){selectedDtfuv=p.key;renderVariantes('dtfuv-variantes-wrap',p.tallas||['Unica']);}
+      if(tipo==='dtfuv'){selectedDtfuv=p.key;dtfuvCustomTotal=null;renderVariantes('dtfuv-variantes-wrap',p.tallas||['Unica']);}
       if(tipo==='sub'){selectedSub=p.key;renderVariantes('sub-variantes-wrap',p.tallas||[]);}
       if(tipo==='cli'){selectedCli=p.key;renderVariantes('cli-variantes-wrap',p.tallas||TALLAS_ROPA);}
       renderProdGrid(elId,prods,getSelected,tipo);
@@ -2198,9 +2229,18 @@ function calcUv(){
   calcPagoWidget('uv',tot);
 }
 
+let dtfuvCustomTotal = null; // cuando se usa la calculadora, guarda el total aqui
+
 function calcDtfuv(){
+  // Si hay un total personalizado de la calculadora, usarlo directamente
+  if(dtfuvCustomTotal !== null){
+    document.getElementById('dtfuv-tot').textContent='$'+dtfuvCustomTotal.toLocaleString('es-MX');
+    document.getElementById('dtfuv-det').textContent='Precio calculado (tamaño personalizado)';
+    calcPagoWidget('dtfuv', dtfuvCustomTotal);
+    return;
+  }
   const p=DTFUV_PRODS.find(x=>x.key===selectedDtfuv);
-  if(!p){document.getElementById('dtfuv-tot').textContent='$0';document.getElementById('dtfuv-det').textContent='Selecciona un producto';return;}
+  if(!p){document.getElementById('dtfuv-tot').textContent='$0';document.getElementById('dtfuv-det').textContent='Selecciona un producto o usa la calculadora';return;}
   const pr=DTFUV_PR[p.key]||{u:p.u,m:p.m};
   const qty=parseInt(document.getElementById('dtfuv-qty').value)||1;
   const base=getPrecioTier(pr,qty);const mayo=qty>=MAYOREO;
@@ -2256,12 +2296,18 @@ function getSrvData(tipo){
     return{tipo:'Vasos y cilindros',tipoKey:'uv',prodKey:p.key,prod:p.name,nombre:document.getElementById('uv-nom').value||p.name,qty,total:qty*base,nota:document.getElementById('uv-nota').value,variantes:vars,varStr:variantesStr(vars)};
   }
   if(tipo==='dtfuv'){
+    const qty=parseInt(document.getElementById('dtfuv-qty').value)||1;
+    const nom=document.getElementById('dtfuv-nom').value;
+    const nota=document.getElementById('dtfuv-nota').value;
+    // Si hay total de la calculadora, usarlo directamente
+    if(dtfuvCustomTotal !== null){
+      return{tipo:'DTF UV',tipoKey:'dtfuv',prodKey:null,prod:nom||'Sticker DTF UV tamaño personalizado',nombre:nom||'Sticker DTF UV tamaño personalizado',qty,total:dtfuvCustomTotal,nota,variantes:[],varStr:''};
+    }
     const p=DTFUV_PRODS.find(x=>x.key===selectedDtfuv);if(!p)return null;
     const pr=DTFUV_PR[p.key]||{u:p.u,m:p.m};
-    const qty=parseInt(document.getElementById('dtfuv-qty').value)||1;
     const base=getPrecioTier(pr,qty);
     const vars=getVariantes('dtfuv-variantes-wrap');
-    return{tipo:'DTF UV',tipoKey:'dtfuv',prodKey:p.key,prod:p.name,nombre:document.getElementById('dtfuv-nom').value||p.name,qty,total:qty*base,nota:document.getElementById('dtfuv-nota').value,variantes:vars,varStr:variantesStr(vars)};
+    return{tipo:'DTF UV',tipoKey:'dtfuv',prodKey:p.key,prod:p.name,nombre:nom||p.name,qty,total:qty*base,nota,variantes:vars,varStr:variantesStr(vars)};
   }
   if(tipo==='sub'){
     const p=SUB_PRODS.find(x=>x.key===selectedSub);if(!p)return null;
@@ -4297,18 +4343,82 @@ function initDtfuvCalc(){
   const result = document.getElementById('dtfuv-calc-result');
   const precioEl = document.getElementById('dtfuv-calc-precio');
   const detalleEl = document.getElementById('dtfuv-calc-detalle');
+  const qtyEl = document.getElementById('dtfuv-calc-qty');
   if(!wInp) return;
+
+  let instMonto = 0;
+
+  function updateTotal(){
+    const precio = parseInt(precioEl.value)||0;
+    const qty = parseInt(qtyEl.value)||1;
+    const sub = precio * qty;
+    const total = sub + instMonto;
+    document.getElementById('dtfuv-calc-sub-label').textContent = `${qty} pza${qty>1?'s':''} × $${precio}`;
+    document.getElementById('dtfuv-calc-sub').textContent = '$'+sub.toLocaleString('es-MX');
+    const instRow = document.getElementById('dtfuv-calc-inst-row');
+    if(instMonto > 0){
+      instRow.style.display = 'flex';
+      document.getElementById('dtfuv-calc-inst-label').textContent = instMonto===150?'Instalación sencilla':'Instalación compleja';
+      document.getElementById('dtfuv-calc-inst-amt').textContent = '$'+instMonto;
+    } else {
+      instRow.style.display = 'none';
+    }
+    document.getElementById('dtfuv-calc-total').textContent = '$'+total.toLocaleString('es-MX');
+  }
+
   function update(){
     const w = parseFloat(wInp.value)||0;
     const h = parseFloat(hInp.value)||0;
     if(!w || !h){ result.style.display='none'; return; }
     const precio = calcDtfuvPrecioCustom(w, h);
     result.style.display = 'block';
-    precioEl.textContent = '$' + precio;
-    detalleEl.textContent = `${w}×${h} cm (${w*h} cm²) · precio estimado`;
+    precioEl.value = precio;
+    detalleEl.textContent = `${w}×${h} cm · ${w*h} cm² · estimado`;
+    updateTotal();
   }
+
   wInp.addEventListener('input', update);
   hInp.addEventListener('input', update);
+  precioEl?.addEventListener('input', updateTotal);
+  qtyEl?.addEventListener('input', updateTotal);
+
+  // Botones de instalación
+  document.querySelectorAll('.dtfuv-inst-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.dtfuv-inst-btn').forEach(b=>{ b.classList.remove('on'); b.style.background=''; b.style.color=''; });
+      btn.classList.add('on');
+      btn.style.background = 'var(--acc)';
+      btn.style.color = '#fff';
+      instMonto = parseInt(btn.dataset.monto)||0;
+      updateTotal();
+    });
+  });
+
+  // Botón "Usar este precio en el pedido"
+  document.getElementById('dtfuv-calc-usar')?.addEventListener('click', ()=>{
+    const precio = parseInt(precioEl.value)||0;
+    const qty = parseInt(qtyEl.value)||1;
+    const w = parseFloat(wInp.value)||0;
+    const h = parseFloat(hInp.value)||0;
+    const total = precio * qty + instMonto;
+    // Guardar total personalizado para que calcDtfuv lo use
+    dtfuvCustomTotal = total;
+    selectedDtfuv = null; // deseleccionar producto del grid
+    // Cargar en el formulario del pedido
+    const qtyForm = document.getElementById('dtfuv-qty');
+    const nomEl = document.getElementById('dtfuv-nom');
+    const notaEl = document.getElementById('dtfuv-nota');
+    if(qtyForm) qtyForm.value = qty;
+    if(nomEl && !nomEl.value) nomEl.value = `Sticker DTF UV ${w}×${h} cm`;
+    if(notaEl && instMonto>0){
+      const instTxt = instMonto===150?'Instalación sencilla $150':'Instalación compleja $250';
+      if(!notaEl.value.includes(instTxt)) notaEl.value = (notaEl.value?notaEl.value+' · ':'')+instTxt;
+    }
+    calcDtfuv();
+    // Scroll suave hacia el formulario de pedido
+    document.getElementById('dtfuv-qty')?.scrollIntoView({behavior:'smooth', block:'center'});
+    toast(`✓ $${total.toLocaleString('es-MX')} cargado · ya puedes guardar el pedido`);
+  });
 }
 
 // ── FILTRO PERÍODO LISTENERS ──
